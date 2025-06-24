@@ -36,6 +36,15 @@
         <input type="radio" id="contains" name="matchType" value="contains">
         <label for="contains">Contains</label>
     </div>
+    <div>
+        <label>Select Language:</label>
+    </div>
+    <div>
+        <input type="radio" id="lang_en" name="lang" value="en" checked>
+        <label for="lang_en">English</label>
+        <input type="radio" id="lang_es" name="lang" value="es">
+        <label for="lang_es">Spanish</label>
+    </div>
     <button onclick="searchAPI()">Search</button>
 
     <div class="container">
@@ -65,6 +74,7 @@ var globalLang = null;
 
 function searchAPI() {
     var searchTerm = $('#searchTerm').val();
+    var selectedLang = $('input[name="lang"]:checked').val();
     var matchType = $('input[name="matchType"]:checked').val();
 
     // Check if search term is empty
@@ -73,7 +83,7 @@ function searchAPI() {
         return;
     }
 
-    var apiUrl = API_URL + '&action=search&searchTerm=' + encodeURIComponent(searchTerm) + '&matchType=' + matchType;
+    var apiUrl = API_URL + '&action=search&searchTerm=' + encodeURIComponent(searchTerm) + '&lang=' + selectedLang + '&matchType=' + matchType;
 
     // Show loading indicator
     $('#loadingIndicator').show();
@@ -117,14 +127,14 @@ function updateSelectedTermsList() {
     });
 }
 
-function fetchAndDisplayConcepts(uri, type, title) {
+function fetchAndDisplayConcepts(uri, lang, type, title) {
     var detailsView = $('#details-view');
     var section = $('<div>').addClass('concept-section').attr('id', type + '-section');
     var loadingIndicator = $('<div>').addClass('loading-indicator').text('Loading ' + title.toLowerCase() + '...');
     section.append(loadingIndicator);
     detailsView.append(section);
 
-    var apiUrl = API_URL + '&action=fetch_concepts&uri=' + encodeURIComponent(uri) + '&type=' + encodeURIComponent(type);
+    var apiUrl = API_URL + '&action=fetch_concepts&uri=' + encodeURIComponent(uri) + '&lang=' + encodeURIComponent(lang) + '&type=' + encodeURIComponent(type);
 
     $.get(apiUrl, function(data) {
         loadingIndicator.remove();
@@ -235,11 +245,12 @@ function displayDetails(result) {
     detailsView.append(currentConcept);
 
     var uri = result.uri;
+    var lang = globalLang;
 
     // Fetch and display related concepts
-    fetchAndDisplayConcepts(uri, 'broader', 'Broader Concepts');
-    fetchAndDisplayConcepts(uri, 'narrower', 'Narrower Concepts');
-    fetchAndDisplayConcepts(uri, 'related', 'Related Concepts');
+    fetchAndDisplayConcepts(uri, lang, 'broader', 'Broader Concepts');
+    fetchAndDisplayConcepts(uri, lang, 'narrower', 'Narrower Concepts');
+    fetchAndDisplayConcepts(uri, lang, 'related', 'Related Concepts');
 }
 
 function displayResults(data) {

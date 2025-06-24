@@ -101,9 +101,10 @@ sub search_homosaurus {
     if ($action eq 'search') {
         my $search_term = $cgi->param('searchTerm');
         my $match_type = $cgi->param('matchType');
+        my $lang = $cgi->param('lang') || 'en';
 
         # Add debugging
-        warn "Search request: term=$search_term, match_type=$match_type";
+        warn "Search request: term=$search_term, match_type=$match_type, lang=$lang";
 
         # Modify search term based on match type
         if ($match_type eq 'contains') {
@@ -126,7 +127,7 @@ sub search_homosaurus {
             # Parse the JSON-LD response and transform it to match our expected format
             eval {
                 my $json_data = decode_json($response->{content});
-                my $transformed_data = transform_search_results($json_data);
+                my $transformed_data = transform_search_results($json_data, $lang);
                 $response_content = encode_json($transformed_data);
             };
             if ($@) {
@@ -139,9 +140,10 @@ sub search_homosaurus {
         }
     } elsif ($action eq 'fetch_concepts') {
         my $uri = $cgi->param('uri');
+        my $lang = $cgi->param('lang') || 'en';
         my $type = $cgi->param('type');
 
-        warn "Fetch concepts request: uri=$uri, type=$type";
+        warn "Fetch concepts request: uri=$uri, type=$type, lang=$lang";
 
         # Extract the identifier from the URI
         my $identifier = $uri;
@@ -160,7 +162,7 @@ sub search_homosaurus {
             # Parse the JSON-LD response and transform it to match our expected format
             eval {
                 my $json_data = decode_json($response->{content});
-                my $transformed_data = transform_concept_data($json_data, $type);
+                my $transformed_data = transform_concept_data($json_data, $type, $lang);
                 $response_content = encode_json($transformed_data);
             };
             if ($@) {
@@ -177,16 +179,17 @@ sub search_homosaurus {
 }
 
 sub transform_search_results {
-    my ($json_data) = @_;
+    my ($json_data, $lang) = @_;
     my $results = [];
     
     if ($json_data->{'@graph'}) {
         foreach my $concept (@{$json_data->{'@graph'}}) {
-            my $pref_label = get_all_labels($concept);
+            my $pref_label = get_pref_label($concept, $lang);
             if ($pref_label) {
                 push @$results, {
                     prefLabel => $pref_label,
                     uri => $concept->{'@id'},
+                    lang => $lang,
                     vocab => 'homosaurus'
                 };
             }
@@ -197,7 +200,7 @@ sub transform_search_results {
 }
 
 sub transform_concept_data {
-    my ($json_data, $type) = @_;
+    my ($json_data, $type, $lang) = @_;
     my $concepts = [];
     
     # Get the related concepts based on type
@@ -235,7 +238,7 @@ sub transform_concept_data {
         if ($concept_response->{success}) {
             eval {
                 my $concept_data = decode_json($concept_response->{content});
-                my $pref_label = get_all_labels($concept_data);
+                my $pref_label = get_pref_label($concept_data, $lang);
                 if ($pref_label) {
                     warn "Found label for $uri: $pref_label";
                     push @$concepts, {
@@ -268,10 +271,10 @@ sub transform_concept_data {
     return { $type => $concepts };
 }
 
-sub get_all_labels {
-    my ($concept) = @_;
+sub get_pref_label {
+    my ($concept, $lang) = @_;
     
-    warn "get_all_labels called";
+    warn "get_pref_label called with lang: $lang";
     
     if ($concept->{'skos:prefLabel'}) {
         my $labels = $concept->{'skos:prefLabel'};
@@ -279,19 +282,22 @@ sub get_all_labels {
         
         if (ref($labels) eq 'ARRAY') {
             warn "Processing array of " . scalar(@$labels) . " labels";
-            my @all_labels = ();
             foreach my $label (@$labels) {
-                if (ref($label) eq 'HASH' && $label->{'@value'}) {
-                    push @all_labels, $label->{'@value'};
+                if (ref($label) eq 'HASH' && $label->{'@language'} eq $lang) {
+                    warn "Found matching label: " . $label->{'@value'};
+                    return $label->{'@value'};
                 }
             }
-            if (@all_labels) {
-                warn "Found labels: " . join(", ", @all_labels);
-                return join(" / ", @all_labels);
+            # Fallback to first label if language not found
+            if (ref($labels->[0]) eq 'HASH') {
+                warn "Using fallback label: " . $labels->[0]->{'@value'};
+                return $labels->[0]->{'@value'};
             }
-        } elsif (ref($labels) eq 'HASH' && $labels->{'@value'}) {
-            warn "Found single label: " . $labels->{'@value'};
+        } elsif (ref($labels) eq 'HASH' && $labels->{'@language'} eq $lang) {
+            warn "Found single matching label: " . $labels->{'@value'};
             return $labels->{'@value'};
+        } elsif (ref($labels) eq 'HASH') {
+            warn "Single label language mismatch: " . $labels->{'@language'} . " vs " . $lang;
         }
     } else {
         warn "No skos:prefLabel found";
