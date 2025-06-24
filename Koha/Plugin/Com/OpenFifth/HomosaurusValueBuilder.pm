@@ -71,26 +71,21 @@ sub launcher {
     }
     
     my $action = $cgi->param('action') || '';
-    warn "Launcher called with action: $action";
 
     if ($action eq 'search' || $action eq 'fetch_concepts') {
-        warn "Calling search_homosaurus";
         $self->search_homosaurus($cgi, $action);
         return;
     }
 
     # Get template using the plugin's template system
     my $template = $self->get_template({ file => 'homosaurus_search.tt' });
-    warn "Template loaded successfully";
     
     # Add the plugin URL to the template
     my $plugin_url = $self->SUPER::get_valuebuilder_url();
-    warn "Setting plugin_url parameter: $plugin_url";
     $template->param(
         plugin_url => $plugin_url
     );
     
-    warn "Outputting template";
     C4::Output::output_html_with_http_headers($self->{cgi}, undef, $template->output());
 }
 
@@ -103,9 +98,6 @@ sub search_homosaurus {
         my $match_type = $cgi->param('matchType');
         my $lang = $cgi->param('lang') || 'en';
 
-        # Add debugging
-        warn "Search request: term=$search_term, match_type=$match_type, lang=$lang";
-
         # Modify search term based on match type
         if ($match_type eq 'contains') {
             $search_term = '*' . $search_term . '*';
@@ -115,13 +107,9 @@ sub search_homosaurus {
 
         # Perform the search using Homosaurus API v4
         my $api_url = "https://homosaurus.org/search/v4.jsonld?q=" . CGI::escape($search_term);
-        warn "API URL: $api_url";
         
         my $http = HTTP::Tiny->new;
         my $response = $http->get($api_url);
-
-        warn "API Response status: " . $response->{status};
-        warn "API Response reason: " . $response->{reason};
 
         if ($response->{success}) {
             # Parse the JSON-LD response and transform it to match our expected format
@@ -131,11 +119,9 @@ sub search_homosaurus {
                 $response_content = encode_json($transformed_data);
             };
             if ($@) {
-                warn "JSON parsing error: $@";
                 $response_content = encode_json({ error => "JSON parsing error: $@" });
             }
         } else {
-            warn "API request failed: " . $response->{status} . " " . $response->{reason};
             $response_content = encode_json({ error => $response->{status} . " " . $response->{reason} });
         }
     } elsif ($action eq 'fetch_concepts') {
@@ -143,20 +129,15 @@ sub search_homosaurus {
         my $lang = $cgi->param('lang') || 'en';
         my $type = $cgi->param('type');
 
-        warn "Fetch concepts request: uri=$uri, type=$type, lang=$lang";
-
         # Extract the identifier from the URI
         my $identifier = $uri;
         $identifier =~ s/^https:\/\/homosaurus\.org\/v4\///;
         
         # Perform the fetch concepts logic using the individual concept endpoint
         my $api_url = "https://homosaurus.org/v4/$identifier.jsonld";
-        warn "Concept API URL: $api_url";
         
         my $http = HTTP::Tiny->new;
         my $response = $http->get($api_url);
-
-        warn "Concept API Response status: " . $response->{status};
 
         if ($response->{success}) {
             # Parse the JSON-LD response and transform it to match our expected format
@@ -166,11 +147,9 @@ sub search_homosaurus {
                 $response_content = encode_json($transformed_data);
             };
             if ($@) {
-                warn "Concept JSON parsing error: $@";
                 $response_content = encode_json({ error => "JSON parsing error: $@" });
             }
         } else {
-            warn "Concept API request failed: " . $response->{status} . " " . $response->{reason};
             $response_content = encode_json({ error => $response->{status} . " " . $response->{reason} });
         }
     }
@@ -219,12 +198,9 @@ sub transform_concept_data {
             : [$json_data->{'skos:related'}];
     }
     
-    warn "Found " . scalar(@$related_uris) . " $type concepts";
-    
     # For each related URI, fetch the concept details to get the label
     foreach my $uri_obj (@$related_uris) {
         my $uri = ref($uri_obj) eq 'HASH' ? $uri_obj->{'@id'} : $uri_obj;
-        warn "Processing $type concept: $uri";
         
         # Extract the identifier from the URI
         my $identifier = $uri;
@@ -240,17 +216,19 @@ sub transform_concept_data {
                 my $concept_data = decode_json($concept_response->{content});
                 my $pref_label = get_pref_label($concept_data, $lang);
                 if ($pref_label) {
-                    warn "Found label for $uri: $pref_label";
                     push @$concepts, {
                         uri => $uri,
                         prefLabel => $pref_label
                     };
                 } else {
-                    warn "No label found for $uri";
+                    # Fallback to URI if parsing fails
+                    push @$concepts, {
+                        uri => $uri,
+                        prefLabel => $uri
+                    };
                 }
             };
             if ($@) {
-                warn "Error parsing concept data for $uri: $@";
                 # Fallback to URI if parsing fails
                 push @$concepts, {
                     uri => $uri,
@@ -258,7 +236,6 @@ sub transform_concept_data {
                 };
             }
         } else {
-            warn "Failed to fetch concept data for $uri: " . $concept_response->{status};
             # Fallback to URI if fetch fails
             push @$concepts, {
                 uri => $uri,
@@ -267,43 +244,30 @@ sub transform_concept_data {
         }
     }
     
-    warn "Returning " . scalar(@$concepts) . " $type concepts";
     return { $type => $concepts };
 }
 
 sub get_pref_label {
     my ($concept, $lang) = @_;
     
-    warn "get_pref_label called with lang: $lang";
-    
     if ($concept->{'skos:prefLabel'}) {
         my $labels = $concept->{'skos:prefLabel'};
-        warn "Labels type: " . ref($labels);
         
         if (ref($labels) eq 'ARRAY') {
-            warn "Processing array of " . scalar(@$labels) . " labels";
             foreach my $label (@$labels) {
                 if (ref($label) eq 'HASH' && $label->{'@language'} eq $lang) {
-                    warn "Found matching label: " . $label->{'@value'};
                     return $label->{'@value'};
                 }
             }
             # Fallback to first label if language not found
             if (ref($labels->[0]) eq 'HASH') {
-                warn "Using fallback label: " . $labels->[0]->{'@value'};
                 return $labels->[0]->{'@value'};
             }
         } elsif (ref($labels) eq 'HASH' && $labels->{'@language'} eq $lang) {
-            warn "Found single matching label: " . $labels->{'@value'};
             return $labels->{'@value'};
-        } elsif (ref($labels) eq 'HASH') {
-            warn "Single label language mismatch: " . $labels->{'@language'} . " vs " . $lang;
         }
-    } else {
-        warn "No skos:prefLabel found";
     }
     
-    warn "No label found, returning undef";
     return undef;
 }
 
