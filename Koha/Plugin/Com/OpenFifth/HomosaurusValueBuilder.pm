@@ -1,4 +1,4 @@
-package Koha::Plugin::Com::Organisation::HomosaurusValueBuilder;
+package Koha::Plugin::Com::OpenFifth::HomosaurusValueBuilder;
 
 use Modern::Perl;
 use base qw(Koha::Plugins::Base);
