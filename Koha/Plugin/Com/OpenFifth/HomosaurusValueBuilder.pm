@@ -10,7 +10,7 @@ use HTTP::Tiny;
 use JSON;
 use CGI qw(-utf8);
 
-our $VERSION = "0.0.0";
+our $VERSION = '1.0.0';
 our $MINIMUM_VERSION = "24.11.00.000";
 
 our $metadata = {
