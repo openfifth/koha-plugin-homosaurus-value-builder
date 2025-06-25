@@ -165,8 +165,10 @@ sub transform_search_results {
         foreach my $concept (@{$json_data->{'@graph'}}) {
             my $pref_label = get_pref_label($concept, $lang);
             if ($pref_label) {
+                my $description = get_description($concept, $lang);
                 push @$results, {
                     prefLabel => $pref_label,
+                    description => $description,
                     uri => $concept->{'@id'},
                     lang => $lang,
                     vocab => 'homosaurus'
@@ -265,6 +267,30 @@ sub get_pref_label {
             }
         } elsif (ref($labels) eq 'HASH' && $labels->{'@language'} eq $lang) {
             return $labels->{'@value'};
+        }
+    }
+    
+    return undef;
+}
+
+sub get_description {
+    my ($concept, $lang) = @_;
+    
+    if ($concept->{'rdfs:comment'}) {
+        my $comments = $concept->{'rdfs:comment'};
+        
+        if (ref($comments) eq 'ARRAY') {
+            foreach my $comment (@$comments) {
+                if (ref($comment) eq 'HASH' && $comment->{'@language'} eq $lang) {
+                    return $comment->{'@value'};
+                }
+            }
+            # Fallback to first comment if language not found
+            if (ref($comments->[0]) eq 'HASH') {
+                return $comments->[0]->{'@value'};
+            }
+        } elsif (ref($comments) eq 'HASH' && $comments->{'@language'} eq $lang) {
+            return $comments->{'@value'};
         }
     }
     

@@ -53,28 +53,49 @@
             
             <div class="col-sm-6">
                 <fieldset>
-                    <legend>[% t("Concept details") | html %]</legend>
-                    <div id="details-view" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;">
-                        <p class="hint">[% t("Select a concept from the search results to view related terms") | html %]</p>
-                    </div>
-                </fieldset>
-                
-                <fieldset>
-                    <legend>[% t("Selected terms") | html %] (<span id="selected-count">0</span>)</legend>
-                    <div id="selected-terms-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">
-                        <p class="hint">[% t("Selected terms will appear here") | html %]</p>
+                    <legend>[% t("Concept details & browsing") | html %]</legend>
+                    <div id="details-view" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;">
+                        <div class="browsing-help">
+                            <p class="hint"><strong>[% t("How to browse:") | html %]</strong></p>
+                            <ul class="help-list">
+                                <li>[% t("Click any search result to view concept details and related terms") | html %]</li>
+                                <li>[% t("Use 'Select' button here to add the current concept to your selection") | html %]</li>
+                                <li>[% t("Explore broader, narrower, or related concepts that appear below") | html %]</li>
+                                <li>[% t("Click 'Details' on related concepts to browse further") | html %]</li>
+                            </ul>
+                        </div>
                     </div>
                 </fieldset>
             </div>
         </div>
     </div>
 
+    <!-- Selected terms section -->
+    <div class="page-section">
+        <fieldset>
+            <legend>[% t("Selected terms") | html %] (<span id="selected-count">0</span>)</legend>
+            <div id="selected-terms-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; background-color: #f8f9fa;">
+                <div class="selection-help">
+                    <p class="hint">[% t("Selected terms will appear here") | html %]</p>
+                    <div class="workflow-info">
+                        <p><strong>[% t("Workflow options:") | html %]</strong></p>
+                        <ul class="workflow-list">
+                            <li><strong>[% t("Replace field") | html %]:</strong> [% t("Replaces the current MARC field with one selected term") | html %]</li>
+                            <li><strong>[% t("Create new fields") | html %]:</strong> [% t("Creates new MARC fields for all selected terms") | html %]</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+
     <!-- Fixed bottom navigation -->
     <nav class="navbar navbar-default fixed-bottom">
         <div class="container-fluid">
             <fieldset class="action">
-                <input type="button" class="btn btn-success btn-lg" value="[% t('Create fields') | html %]" onclick="createFieldFromURL()" id="create-fields-btn" disabled />
-                <button class="btn btn-default close_window">[% t("Cancel") | html %]</button>
+                <input type="button" class="btn btn-primary btn-sm" value="[% t('Replace field') | html %]" onclick="replaceFieldFromURL()" id="replace-field-btn" disabled />
+                <input type="button" class="btn btn-success btn-sm" value="[% t('Create new fields') | html %]" onclick="createFieldFromURL()" id="create-fields-btn" disabled />
+                <button class="btn btn-default btn-sm close_window">[% t("Cancel") | html %]</button>
             </fieldset>
         </div>
     </nav>
@@ -156,27 +177,17 @@ function displayResults(data) {
 
     if (data.results && data.results.length > 0) {
         data.results.forEach(function(result) {
-            var resultItem = $('<div class="result-item">');
+            var resultItem = $('<div class="result-item clickable">');
             var resultContent = $('<div class="result-content">').text(result.prefLabel);
-            var resultActions = $('<div class="result-actions">');
-            var selectBtn = $('<button class="btn btn-xs btn-primary">').text('[% t("Select") | html %]');
-            var detailsBtn = $('<button class="btn btn-xs btn-default">').text('[% t("Details") | html %]');
 
-            selectBtn.on('click', function(e) {
-                e.stopPropagation();
-                globalLang = result.lang;
-                addSelectedTerm(result);
-            });
-
-            detailsBtn.on('click', function() {
+            resultItem.on('click', function() {
                 globalLang = result.lang;
                 $('.result-item').removeClass('selected');
                 resultItem.addClass('selected');
                 displayDetails(result);
             });
 
-            resultActions.append(selectBtn).append(' ').append(detailsBtn);
-            resultItem.append(resultContent).append(resultActions);
+            resultItem.append(resultContent);
             resultsList.append(resultItem);
         });
     } else {
@@ -196,6 +207,14 @@ function displayDetails(result) {
         addSelectedTerm(result);
     });
     currentDiv.append(selectBtn);
+    
+    // Add description if available, or fetch it
+    if (result.description && result.description.trim() !== '') {
+        var descriptionDiv = $('<div class="concept-description">');
+        descriptionDiv.append('<p class="description-text">' + result.description + '</p>');
+        currentDiv.append(descriptionDiv);
+    }
+    
     detailsView.append(currentDiv);
 
     var uri = result.uri;
@@ -276,12 +295,14 @@ function addSelectedTerm(term) {
 
 function updateSelectedTermsList() {
     var selectedTermsList = $('#selected-terms-list');
+    var replaceBtn = $('#replace-field-btn');
     var createBtn = $('#create-fields-btn');
     
     selectedTermsList.empty();
     
     if (selectedTerms.length === 0) {
-        selectedTermsList.append('<p class="hint">[% t("Selected terms will appear here") | html %]</p>');
+        selectedTermsList.append($('.selection-help').clone());
+        replaceBtn.prop('disabled', true);
         createBtn.prop('disabled', true);
     } else {
         selectedTerms.forEach(function(termObj, index) {
@@ -297,7 +318,15 @@ function updateSelectedTermsList() {
             termItem.append(termContent).append(' ').append(removeBtn);
             selectedTermsList.append(termItem);
         });
-        createBtn.prop('disabled', false);
+        
+        // Enable appropriate buttons based on selection count
+        if (selectedTerms.length === 1) {
+            replaceBtn.prop('disabled', false);
+            createBtn.prop('disabled', false);
+        } else {
+            replaceBtn.prop('disabled', true); // Only allow replace for single selection
+            createBtn.prop('disabled', false);
+        }
     }
     
     $('#selected-count').text(selectedTerms.length);
@@ -306,6 +335,23 @@ function updateSelectedTermsList() {
 function getQueryParam(name) {
     var urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(name);
+}
+
+function replaceFieldFromURL() {
+    var index = getQueryParam('li_id');
+    if (index && selectedTerms.length === 1) {
+        replaceFieldWorker(index, selectedTerms[0]);
+        if (opener && !opener.closed) {
+            opener.focus();
+        }
+        window.close();
+    } else if (!index) {
+        alert('[% t("No field index found") | html %]');
+    } else if (selectedTerms.length === 0) {
+        alert('[% t("No terms selected") | html %]');
+    } else {
+        alert('[% t("Please select exactly one term to replace the field") | html %]');
+    }
 }
 
 function createFieldFromURL() {
@@ -334,6 +380,31 @@ function addTerms2Rec(index, terms) {
     for (var i = 0; i < terms.length; i++) {
         idx = CloneField(idx);
         addTermWorker(idx, terms[i]);
+    }
+}
+
+function replaceFieldWorker(index, termObj) {
+    var t = opener.document.getElementById(index);
+    var tagdata = index.split('_');
+    var inputs = t.getElementsByTagName('input');
+    
+    var tagId = tagdata[1];
+    
+    for (var i = 0; i < inputs.length; i++) {
+        var inputName = inputs[i].name;
+        
+        if (inputName.indexOf('tag_' + tagId + '_subfield_a') === 0) {
+            inputs[i].value = termObj.label; // Label
+        }
+        if (inputName.indexOf('tag_' + tagId + '_subfield_0') === 0) {
+            inputs[i].value = termObj.uri; // URI
+        }
+        if (inputName.indexOf('tag_' + tagId + '_subfield_2') === 0) {
+            inputs[i].value = 'homoit';
+        }
+        if (inputName.indexOf('tag_' + tagId + '_indicator2') === 0) {
+            inputs[i].value = '7';
+        }
     }
 }
 
@@ -445,40 +516,62 @@ function CloneField(index) {
 }
 .result-item {
     border: 1px solid #ddd;
-    padding: 8px;
-    margin-bottom: 5px;
+    padding: 12px 15px;
+    margin-bottom: 3px;
     background-color: #fff;
     cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
 }
 
-.result-item:hover {
-    background-color: #f5f5f5;
+.result-item.clickable:hover {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+    transform: translateX(2px);
+    box-shadow: 0 2px 4px rgba(0,123,255,0.1);
 }
 
 .result-item.selected {
     background-color: #e6f3ff;
     border-color: #007bff;
+    border-width: 2px;
+    font-weight: 600;
 }
 
 .result-content {
-    margin-bottom: 5px;
     font-weight: 500;
+    color: #495057;
+    line-height: 1.3;
 }
 
-.result-actions {
-    text-align: right;
+.result-item.selected .result-content {
+    color: #0056b3;
 }
 
 .concept-section {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+    padding: 12px;
 }
 
 .concept-section h4 {
-    margin-bottom: 8px;
+    margin: 0 0 10px 0;
     color: #495057;
-    font-size: 14px;
-    border-bottom: 1px solid #dee2e6;
-    padding-bottom: 3px;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.concept-section h4:before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    background-color: #007bff;
+    border-radius: 2px;
 }
 
 .concept-item {
@@ -515,10 +608,24 @@ function CloneField(index) {
 }
 
 .current-concept {
-    padding: 10px;
-    background-color: #e9ecef;
-    border-radius: 4px;
-    margin-bottom: 15px;
+    padding: 15px;
+    background-color: #e6f3ff;
+    border: 2px solid #007bff;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+.concept-description {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #ccc;
+}
+
+.description-text {
+    margin: 5px 0 0 0;
+    font-style: italic;
+    color: #495057;
+    line-height: 1.4;
 }
 
 .loading {
@@ -533,6 +640,61 @@ function CloneField(index) {
     font-style: italic;
     text-align: center;
     margin: 20px 0;
+}
+
+.browsing-help {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.browsing-help .hint {
+    text-align: left;
+    margin: 0 0 10px 0;
+    font-style: normal;
+}
+
+.help-list {
+    margin: 0;
+    padding-left: 20px;
+    color: #495057;
+}
+
+.help-list li {
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.selection-help {
+    text-align: center;
+}
+
+.workflow-info {
+    background-color: #e6f3ff;
+    border: 1px solid #b3d9ff;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 15px;
+    text-align: left;
+}
+
+.workflow-info p {
+    margin: 0 0 8px 0;
+    color: #495057;
+}
+
+.workflow-list {
+    margin: 0;
+    padding-left: 20px;
+    color: #495057;
+}
+
+.workflow-list li {
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
 .warning {
