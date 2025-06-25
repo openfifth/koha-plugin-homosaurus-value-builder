@@ -53,7 +53,7 @@ function Click$function_name(ev) {
     var button = ev.target;
     var liElement = button.closest('li[id^="tag_"]');
     var liId = liElement.id;
-    window.open("$plugin_url&li_id="+encodeURIComponent(liId),"homosaurus","width=550,height=600,toolbar=false,scrollbars=yes");
+    window.open("$plugin_url&li_id="+encodeURIComponent(liId),"homosaurus","width=800,height=550,toolbar=false,scrollbars=yes");
 }
 </script>
 |;
