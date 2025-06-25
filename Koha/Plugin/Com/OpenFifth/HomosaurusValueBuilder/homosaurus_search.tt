@@ -9,7 +9,14 @@
 
 <body id="cat_homosaurus_search" class="cat value_builder">
 
-<h1>[% t("Homosaurus vocabulary search") | html %]</h1>
+<div class="page-header">
+    <h1 class="main-heading">
+        <img src="https://homosaurus.org/assets/homosaurus_small-e3ca68f54eb8218060346d3ed3dae060a83ee8a8261c8edc6121e7e2cf43f1f1.png" 
+             alt="Homosaurus logo" 
+             class="homosaurus-logo">
+        [% t("Homosaurus vocabulary search") | html %]
+    </h1>
+</div>
 
 <form method="get" name="f_pop" id="f_pop" onsubmit="return false;">
     <!-- Search form -->
@@ -459,6 +466,45 @@ function CloneField(index) {
 
 <style>
 /* Custom styles for Homosaurus search */
+
+/* Header and logo styling */
+.page-header {
+    background: linear-gradient(135deg, 
+        rgba(231, 76, 60, 0.1) 0%,
+        rgba(241, 196, 15, 0.1) 16.66%,
+        rgba(46, 204, 113, 0.1) 33.33%,
+        rgba(52, 152, 219, 0.1) 50%,
+        rgba(155, 89, 182, 0.1) 66.66%,
+        rgba(233, 30, 99, 0.1) 83.33%,
+        rgba(231, 76, 60, 0.1) 100%
+    );
+    border-bottom: 3px solid #f8f9fa;
+    margin-bottom: 25px;
+    padding: 20px 15px;
+    border-radius: 8px 8px 0 0;
+}
+
+.main-heading {
+    margin: 0;
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.homosaurus-logo {
+    height: 40px;
+    width: auto;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+    transition: transform 0.3s ease;
+}
+
+.homosaurus-logo:hover {
+    transform: scale(1.05) rotate(2deg);
+}
 
 /* Inline search form styling */
 .search-form-inline {
