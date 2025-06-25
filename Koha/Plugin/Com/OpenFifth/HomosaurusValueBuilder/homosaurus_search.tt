@@ -15,32 +15,24 @@
     <!-- Search form -->
     <div class="page-section">
         <fieldset class="brief">
-            <legend>[% t("Search options") | html %]</legend>
-            <ol>
-                <li>
-                    <label for="searchTerm">[% t("Search term") | html %]:</label>
-                    <input type="text" id="searchTerm" name="searchTerm" size="30" />
-                </li>
-                <li>
-                    <label for="matchType">[% t("Match type") | html %]:</label>
-                    <select id="matchType" name="matchType">
-                        <option value="starts_with" selected="selected">[% t("Starts with") | html %]</option>
-                        <option value="exact">[% t("Exact match") | html %]</option>
-                        <option value="contains">[% t("Contains") | html %]</option>
-                    </select>
-                </li>
-                <li>
-                    <label for="lang">[% t("Language") | html %]:</label>
-                    <select id="lang" name="lang">
-                        <option value="en" selected="selected">[% t("English") | html %]</option>
-                        <option value="es">[% t("Spanish") | html %]</option>
-                        <option value="fr">[% t("French") | html %]</option>
-                    </select>
-                </li>
-            </ol>
-            <fieldset class="action">
-                <input type="button" class="btn btn-primary" value="[% t('Search') | html %]" onclick="searchAPI()" />
-            </fieldset>
+            <legend>[% t("Search") | html %]</legend>
+            <div class="search-form-inline">
+                <label for="searchTerm" class="search-label">[% t("Term") | html %]:</label>
+                <select id="matchType" name="matchType" class="search-select form-select">
+                    <option value="starts_with" selected="selected">[% t("Starts with") | html %]</option>
+                    <option value="exact">[% t("Exact match") | html %]</option>
+                    <option value="contains">[% t("Contains") | html %]</option>
+                </select>
+                <input type="text" id="searchTerm" name="searchTerm" class="search-input" placeholder="[% t('Enter search term') | html %]" />
+                <select id="lang" name="lang" class="search-select form-select">
+                    <option value="en" selected="selected">[% t("English") | html %]</option>
+                    <option value="es">[% t("Spanish") | html %]</option>
+                    <option value="fr">[% t("French") | html %]</option>
+                </select>
+                <button type="button" class="btn btn-primary search-button" onclick="searchAPI()">
+                    <i class="fa fa-search"></i> [% t("Search") | html %]
+                </button>
+            </div>
         </fieldset>
     </div>
 
@@ -88,6 +80,7 @@
     </nav>
 </form>
 
+[% INCLUDE 'select2.inc' %]
 <script>
 const API_URL = '[% plugin_url %]';
 var selectedTerms = [];
@@ -111,6 +104,13 @@ $(document).ready(function() {
             searchAPI();
             return false;
         }
+    });
+    
+    // Initialize Select2 for select elements
+    $('#matchType, #lang').select2({
+        minimumResultsForSearch: -1, // Hide search box for small lists
+        width: '140px',
+        allowClear: false // Disable clear option since these are required fields
     });
     
     // Focus on search field
@@ -388,6 +388,61 @@ function CloneField(index) {
 
 <style>
 /* Custom styles for Homosaurus search */
+
+/* Inline search form styling */
+.search-form-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.search-label {
+    font-weight: 600;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.search-select {
+    min-width: 120px;
+    max-width: 140px;
+}
+
+/* Select2 specific width constraints */
+.search-form-inline .select2-container {
+    width: auto !important;
+    min-width: 120px;
+    max-width: 140px;
+}
+
+.search-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.search-button {
+    white-space: nowrap;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .search-form-inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-input {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .search-select {
+        width: 100%;
+    }
+}
 .result-item {
     border: 1px solid #ddd;
     padding: 8px;
