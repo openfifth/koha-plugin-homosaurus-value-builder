@@ -2,6 +2,8 @@
 
 A modern Koha plugin that provides an intuitive value builder for Homosaurus LGBTQ+ vocabulary terms in cataloguing. This plugin allows cataloguers to search the comprehensive Homosaurus vocabulary and seamlessly add terms to MARC records with proper field formatting.
 
+![Screenshot of Homosaurus Value Builder Plugin](./imgs/screenshot.png)
+
 ## Features
 
 - **Modern, intuitive interface** with Homosaurus branding and inclusive design
